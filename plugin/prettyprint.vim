@@ -1,10 +1,10 @@
 " Prettyprint vim variables.
-" Version: 0.3.0
+" Version: 0.3.1
 " Author : thinca <thinca+vim@gmail.com>
 " License: Creative Commons Attribution 2.1 Japan License
 "          <http://creativecommons.org/licenses/by/2.1/jp/deed.en>
 
-if exists('g:loaded_prettyprint') || v:version < 702
+if exists('g:loaded_prettyprint')
   finish
 endif
 let g:loaded_prettyprint = 1
@@ -12,7 +12,10 @@ let g:loaded_prettyprint = 1
 let s:save_cpo = &cpo
 set cpo&vim
 
-function! s:pp(expr, shift, width, stack)
+
+
+" functions. {{{1
+function! s:pp(expr, shift, width, stack)  " {{{2
   let indent = repeat(s:blank, a:shift)
   let indentn = indent . s:blank
 
@@ -84,12 +87,32 @@ function! s:pp(expr, shift, width, stack)
   return str
 endfunction
 
-function! PrettyPrint(...)
-  let s:indent = type(g:prettyprint_indent) == type('') ?
-  \              eval(g:prettyprint_indent) : g:prettyprint_indent
+
+
+function! s:option(name)  " {{{2
+  let name = 'prettyprint_' . a:name
+  let opt = has_key(b:, name) ? b:[name] : g:[name]
+  return type(opt) == type('') ? eval(opt) : opt
+endfunction
+
+
+
+function! s:echo(str, msg)  " {{{2
+  if a:msg
+    for s in split(a:str, "\n")
+      echomsg s
+    endfor
+  else
+    echo a:str
+  endif
+endfunction
+
+
+
+function! PrettyPrint(...)  " {{{2
+  let s:indent = s:option('indent')
   let s:blank = repeat(' ', s:indent)
-  let s:width = ( type(g:prettyprint_width) == type('') ?
-  \               eval(g:prettyprint_width) : g:prettyprint_width ) - 1
+  let s:width = s:option('width') - 1
   let result = []
   for Expr in a:000
     call add(result, s:pp(Expr, 0, 0, []))
@@ -98,20 +121,30 @@ function! PrettyPrint(...)
   return join(result, "\n")
 endfunction
 
-function! PP(...)
+
+
+function! PP(...)  " {{{2
   return call('PrettyPrint', a:000)
 endfunction
 
-if !exists('g:prettyprint_indent')
+
+
+" options. {{{1
+if !exists('g:prettyprint_indent')  " {{{2
   let g:prettyprint_indent = '&l:shiftwidth'
 endif
 
-if !exists('g:prettyprint_width')
+if !exists('g:prettyprint_width')  " {{{2
   let g:prettyprint_width = '&columns'
 endif
 
-command! -nargs=+ -complete=expression PrettyPrint echo PrettyPrint(<args>)
-command! -nargs=+ -complete=expression PP echo PP(<args>)
+
+
+" commands. {{{1
+command! -nargs=+ -bang -complete=expression PrettyPrint PP<bang> <args>
+command! -nargs=+ -bang -complete=expression PP call s:echo(PP(<args>), <bang>0)
+
+
 
 let &cpo = s:save_cpo
 unlet s:save_cpo
