@@ -1,9 +1,8 @@
 *prettyprint.txt*	Prettyprint vim variables.
 
-Version: 0.3.1
+Version: 0.3.2
 Author : thinca <thinca+vim@gmail.com>
-License: Creative Commons Attribution 2.1 Japan License
-         <http://creativecommons.org/licenses/by/2.1/jp/deed.en>
+License: zlib License
 
 ==============================================================================
 CONTENTS					*prettyprint-contents*
@@ -73,19 +72,41 @@ b:prettyprint_width				*b:prettyprint_width*
 	Width by return.  If the type of value is String, |eval()| is applied.
 	The default value is "&columns".
 
+g:prettyprint_string				*g:prettyprint_string*
+b:prettyprint_string				*b:prettyprint_string*
+	Format of string.  This is a |List| of the following values.
+	- "split"
+	- "raw"
+	See |prettyprint-format-rules-String| for details.
+	The default value is [] (empty list).
+
+g:prettyprint_show_expression	*g:prettyprint_show_expression*
+	Show also expression not only evaluated value.
+	e.g.: If this variable is true,
+	":PP 1 + 1" outputs "1 + 1 = 2".
+	If false, it just outputs "2".
 
 
 ==============================================================================
 FORMAT RULES					*prettyprint-format-rules*
 
-String
-	|strtrans()| and |string()| are sequentially used.
+String					*prettyprint-format-rules-String*
+	See also |g:prettyprint_string|.
+	By default, |strtrans()| and |string()| are sequentially used.
+	If |g:prettyprint_string| contains "raw", don't use |strtrans()|.
+	If |g:prettyprint_string| contains "split" and the string has two or
+	more lines, it is displayed by the following styles.
+>
+	join([
+	  'line1',
+	  'line2'
+	])
 
-Number
-Float
+Number					*prettyprint-format-rules-Number*
+Float					*prettyprint-format-rules-Float*
 	|string()| is used.
 
-List
+List					*prettyprint-format-rules-List*
 	List is displayed by same style as |string()|.  If the limit of
 	width is exceeded, it is displayed by the following styles.
 >
@@ -105,7 +126,7 @@ List
 	let x += [x]
 	PP x  " => [10, [nested element 0]]
 <
-Dictionary
+Dictionary				*prettyprint-format-rules-Dictionary*
 	Dictionary is displayed by same style as |string()|.  If the limit of
 	width is exceeded, it is displayed by the following styles.
 >
@@ -119,7 +140,7 @@ Dictionary
 	If nested element is appear, it is displayed by same style as List,
 	but it use brace instead of bracket.
 
-Funcref
+Funcref					*prettyprint-format-rules-Funcref*
 	Normally, |string()| is used.  If 'verbose' is one, the definition of
 	function is displayed by using |:function|.  If 'verbose' is two or
 	more, in addition, the file which the function was defined at last is
@@ -135,10 +156,30 @@ LIMITATION					*prettyprint-limitation*
 - In internal, the recursive call is used.  This is subject to the limitation
   of it. See 'maxfuncdepth'.
 
+- Can't access a script local variable/function via the command.
+  - This is specification of Vim.  Use |PP()| instead.
+>
+	let s:var = 0
+	function s:dump(var)
+	  let l:var = 0
+	  " OK
+	  PP a:var
+	  " OK
+	  PP l:var
+	  " NG
+	  PP s:var
+	  " OK
+	  echo PP(s:var)
+	endfunction
+
 
 
 ==============================================================================
 CHANGELOG					*prettyprint-changelog*
+
+0.3.2	2011-12-22
+	- Added |g:prettyprint_string| option.
+	- Improved Funcref support.
 
 0.3.1	2010-09-07
 	- Added the buffer local version of options.

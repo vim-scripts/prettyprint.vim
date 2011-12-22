@@ -1,8 +1,7 @@
 " Prettyprint vim variables.
-" Version: 0.3.1
+" Version: 0.3.2
 " Author : thinca <thinca+vim@gmail.com>
-" License: Creative Commons Attribution 2.1 Japan License
-"          <http://creativecommons.org/licenses/by/2.1/jp/deed.en>
+" License: zlib License
 
 if exists('g:loaded_prettyprint')
   finish
@@ -13,9 +12,8 @@ let s:save_cpo = &cpo
 set cpo&vim
 
 
-
 " functions. {{{1
-function! s:pp(expr, shift, width, stack)  " {{{2
+function! s:pp(expr, shift, width, stack)
   let indent = repeat(s:blank, a:shift)
   let indentn = indent . s:blank
 
@@ -23,7 +21,6 @@ function! s:pp(expr, shift, width, stack)  " {{{2
   call add(a:stack, a:expr)
 
   let width = s:width - a:width - s:indent * a:shift
-
 
   let str = ''
   if type(a:expr) == type([])
@@ -71,13 +68,31 @@ function! s:pp(expr, shift, width, stack)  " {{{2
 
   else
     if &verbose && type(a:expr) == type(function('tr'))
-      redir => func
-      " Don't print a definition location if &verbose == 1.
-      silent! execute (&verbose - 1) 'verbose function a:expr'
-      redir END
-      let str = func
+      let funcname = matchstr(string(a:expr), '^function(''\zs.*\ze'')$')
+      if funcname =~# '^\d\+$'
+        let funcname = '{' . funcname . '}'
+      endif
+      if exists('*' . funcname)
+        redir => func
+        " Don't print a definition location if &verbose == 1.
+        silent! execute (&verbose - 1) 'verbose function' funcname
+        redir END
+        let str = func
+      else
+        let str = string(a:expr)
+      endif
     elseif type(a:expr) == type('')
-      let str = string(strtrans(a:expr))
+      let str = a:expr
+      if a:expr =~# "\n" && s:string_split
+        let expr = s:string_raw ? 'string(v:val)' : 'string(strtrans(v:val))'
+        let str = "join([\n" . indentn .
+        \ join(map(split(a:expr, '\n'), expr), ",\n" . indentn) .
+        \ "\n" . indent . '], "\n")'
+      elseif s:string_raw
+        let str = string(a:expr)
+      else
+        let str = string(strtrans(a:expr))
+      endif
     else
       let str = string(a:expr)
     endif
@@ -87,32 +102,36 @@ function! s:pp(expr, shift, width, stack)  " {{{2
   return str
 endfunction
 
-
-
-function! s:option(name)  " {{{2
+function! s:option(name)
   let name = 'prettyprint_' . a:name
   let opt = has_key(b:, name) ? b:[name] : g:[name]
   return type(opt) == type('') ? eval(opt) : opt
 endfunction
 
-
-
-function! s:echo(str, msg)  " {{{2
+function! s:echo(str, msg, expr)
+  let str = a:str
+  if g:prettyprint_show_expression
+    let str = a:expr . ' = ' . str
+  endif
   if a:msg
-    for s in split(a:str, "\n")
+    for s in split(str, "\n")
       echomsg s
     endfor
   else
-    echo a:str
+    echo str
   endif
 endfunction
 
 
 
-function! PrettyPrint(...)  " {{{2
+function! PrettyPrint(...)
   let s:indent = s:option('indent')
   let s:blank = repeat(' ', s:indent)
   let s:width = s:option('width') - 1
+  let string = s:option('string')
+  let strlist = type(string) is type([]) ? string : [string]
+  let s:string_split = 0 <= index(strlist, 'split')
+  let s:string_raw = 0 <= index(strlist, 'raw')
   let result = []
   for Expr in a:000
     call add(result, s:pp(Expr, 0, 0, []))
@@ -121,12 +140,9 @@ function! PrettyPrint(...)  " {{{2
   return join(result, "\n")
 endfunction
 
-
-
-function! PP(...)  " {{{2
+function! PP(...)
   return call('PrettyPrint', a:000)
 endfunction
-
 
 
 " options. {{{1
@@ -138,12 +154,18 @@ if !exists('g:prettyprint_width')  " {{{2
   let g:prettyprint_width = '&columns'
 endif
 
+if !exists('g:prettyprint_string')  " {{{2
+  let g:prettyprint_string = []
+endif
+
+if !exists('g:prettyprint_show_expression')  " {{{2
+  let g:prettyprint_show_expression = 0
+endif
 
 
 " commands. {{{1
 command! -nargs=+ -bang -complete=expression PrettyPrint PP<bang> <args>
-command! -nargs=+ -bang -complete=expression PP call s:echo(PP(<args>), <bang>0)
-
+command! -nargs=+ -bang -complete=expression PP call s:echo(PP(<args>), <bang>0, <q-args>)
 
 
 let &cpo = s:save_cpo
